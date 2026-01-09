@@ -37,7 +37,22 @@ def poll_and_process():
             "status": "drafting",
             "messages": [],
             "current_issue": issue,
-            "pr_url": None
+            "pr_url": None,
+            "request_type": None,
+            "work_items": None,
+            "current_work_index": None,
+            "current_work_item": None,
+            "stack_base_branch": None,
+            "ephemeral_status": None,
+            "preview_url": None,
+            "ephemeral_db_url": None,
+            "test_status": None,
+            "test_output": None,
+            "telemetry_status": None,
+            "error_count": None,
+            "action": None,
+            "revert_status": None,
+            "reverted_commit": None
         }
 
         try:
