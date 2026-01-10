@@ -5,7 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.state import AgentState, ReviewFeedback
 
 load_dotenv()
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
 COMPLIANCE_PROMPT = """You are a Compliance Officer reviewing code for regulatory requirements.
 
@@ -30,7 +30,7 @@ Approve if no critical compliance violations exist.
 """
 
 
-def compliance_node(state: AgentState) -> dict:
+def compliance_reviewer_node(state: AgentState) -> dict:
     """Review for compliance issues."""
     content = state.get("current_contract") or ""
 

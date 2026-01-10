@@ -1,0 +1,87 @@
+"""Product Manager Agent - converts vague user ideas into structured PRDs with acceptance criteria."""
+import json
+import re
+from dotenv import load_dotenv
+from langchain_google_genai import ChatGoogleGenerativeAI
+from agent.state import AgentState
+from agent.config.context import get_context_for_prompt
+
+load_dotenv()
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
+
+PRODUCT_MANAGER_PROMPT = """You are a Senior Product Manager creating a Product Requirements Document.
+
+{project_context}
+
+User Request:
+{user_request}
+
+Previous Feedback (if any):
+{feedback}
+
+Create a comprehensive PRD with:
+
+1. **Problem Statement**: What problem does this solve? Who is affected?
+2. **User Stories**: 3-5 user stories in "As a [user], I want [goal], so that [benefit]" format
+3. **Acceptance Criteria**: Testable criteria for each user story
+4. **Edge Cases**: What could go wrong? What are the boundary conditions?
+5. **Out of Scope**: What are we explicitly NOT building?
+6. **Success Metrics**: How do we measure success?
+
+Output JSON:
+{{
+  "title": "Feature title",
+  "problem_statement": "Clear problem description",
+  "user_stories": [
+    {{
+      "as_a": "user type",
+      "i_want": "goal",
+      "so_that": "benefit",
+      "acceptance_criteria": ["criterion 1", "criterion 2"]
+    }}
+  ],
+  "edge_cases": ["edge case 1", "edge case 2"],
+  "out_of_scope": ["exclusion 1", "exclusion 2"],
+  "success_metrics": ["metric 1", "metric 2"],
+  "priority": "P0|P1|P2",
+  "estimated_complexity": "S|M|L|XL"
+}}
+"""
+
+
+def product_manager_node(state: AgentState) -> dict:
+    """Generate a structured PRD from user input."""
+    feedback = state.get("prd_feedback") or "None - first draft"
+
+    prompt = PRODUCT_MANAGER_PROMPT.format(
+        project_context=get_context_for_prompt(),
+        user_request=state["task_description"],
+        feedback=feedback
+    )
+
+    response = llm.invoke(prompt)
+    content = response.content
+    if isinstance(content, list):
+        content = content[0] if content else ""
+    content = content.strip()
+
+    # Strip markdown
+    if content.startswith("```"):
+        content = re.sub(r"^```(?:json)?\n?", "", content)
+        content = re.sub(r"\n?```$", "", content)
+
+    try:
+        prd = json.loads(content)
+        print(f"   📋 Product Manager created PRD: {prd.get('title', 'Untitled')}")
+        print(f"      User stories: {len(prd.get('user_stories', []))}")
+        print(f"      Priority: {prd.get('priority', 'P1')} | Complexity: {prd.get('estimated_complexity', 'M')}")
+    except json.JSONDecodeError:
+        prd = {"error": "Failed to parse PRD", "raw": content[:500]}
+        print("   ⚠️ Product Manager could not parse PRD response")
+
+    return {
+        "prd": prd,
+        "status": "prd_ready",
+        "requires_human_approval": True,
+        "messages": state.get("messages", []) + ["Product Manager created PRD"]
+    }

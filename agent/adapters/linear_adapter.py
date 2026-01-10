@@ -108,6 +108,30 @@ class LinearAdapter:
         result = self._query(mutation, {"id": issue_id, "stateId": state_id})
         return result.get("data", {}).get("issueUpdate", {}).get("success", False)
 
+    def update_issue_description(self, issue_id: str, description: str) -> bool:
+        """Update the description of an issue."""
+        mutation = '''
+        mutation UpdateIssueDescription($id: String!, $description: String!) {
+            issueUpdate(id: $id, input: { description: $description }) {
+                success
+            }
+        }
+        '''
+        result = self._query(mutation, {"id": issue_id, "description": description})
+        return result.get("data", {}).get("issueUpdate", {}).get("success", False)
+
+    def get_issue_description(self, issue_id: str) -> str:
+        """Get the current description of an issue."""
+        query = '''
+        query GetIssue($id: String!) {
+            issue(id: $id) {
+                description
+            }
+        }
+        '''
+        result = self._query(query, {"id": issue_id})
+        return result.get("data", {}).get("issue", {}).get("description", "") or ""
+
     def add_comment(self, issue_id: str, body: str) -> bool:
         """Add a comment to an issue."""
         mutation = '''

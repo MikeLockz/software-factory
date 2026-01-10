@@ -3,12 +3,15 @@ import re
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.state import AgentState
+from agent.config.context import get_context_for_prompt
 
 load_dotenv()
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
 CONTRACTOR_PROMPT = """You are a Software Contract Designer.
 Your job is to take a task description and produce a Pydantic-style data contract.
+
+{project_context}
 
 Task: {task_description}
 
@@ -25,7 +28,7 @@ Output raw JSON only, no markdown code blocks.
 """
 
 
-def contractor_node(state: AgentState) -> dict:
+def contract_engineer_node(state: AgentState) -> dict:
     """Generate or refine a data contract based on the task."""
     feedback_list = state.get("review_feedback", [])
     feedback_str = "\n".join(
@@ -35,6 +38,7 @@ def contractor_node(state: AgentState) -> dict:
     ) or "None - this is the first draft."
 
     prompt = CONTRACTOR_PROMPT.format(
+        project_context=get_context_for_prompt(),
         task_description=state["task_description"],
         feedback=feedback_str
     )

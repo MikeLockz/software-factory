@@ -1,8 +1,8 @@
-# PM Agent (Product Manager)
+# Product Manager Agent
 
 > **Goal:** Convert vague user ideas into structured PRDs with acceptance criteria.
 
-The PM Agent is the first agent in the pipeline, transforming raw feature requests into actionable specifications.
+The Product Manager Agent is the first agent in the pipeline, transforming raw feature requests into actionable specifications.
 
 ---
 
@@ -10,7 +10,7 @@ The PM Agent is the first agent in the pipeline, transforming raw feature reques
 
 ```mermaid
 graph LR
-    User[User Idea] --> PM[PM Agent]
+    User[User Idea] --> PM[Product Manager]
     PM --> PRD[Structured PRD]
     PRD --> Gate{Human Approval?}
     Gate -- Yes --> Architect[Architect Agent]
@@ -19,11 +19,11 @@ graph LR
 
 ---
 
-## 1. PM Agent Implementation
+## 1. Product Manager Agent Implementation
 
-### 1.1 Create the PM Node
+### 1.1 Create the Product Manager Node
 
-Create `agent/nodes/pm.py`:
+Create `agent/nodes/product_manager.py`:
 
 ```python
 import json
@@ -33,7 +33,7 @@ from agent.state import AgentState
 
 llm = ChatOpenAI(model="gpt-4o", temperature=0.3)
 
-PM_PROMPT = """You are a Senior Product Manager creating a Product Requirements Document.
+PRODUCT_MANAGER_PROMPT = """You are a Senior Product Manager creating a Product Requirements Document.
 
 User Request:
 {user_request}
@@ -70,11 +70,11 @@ Output JSON:
 }}
 """
 
-def pm_node(state: AgentState) -> dict:
+def product_manager_node(state: AgentState) -> dict:
     """Generate a structured PRD from user input."""
     feedback = state.get("prd_feedback", "None - first draft")
     
-    prompt = PM_PROMPT.format(
+    prompt = PRODUCT_MANAGER_PROMPT.format(
         user_request=state["task_description"],
         feedback=feedback
     )
@@ -198,25 +198,25 @@ def approval_gate_node(state: AgentState) -> dict:
 
 ## 3. Graph Integration
 
-Update `agent/graph.py` to start with PM:
+Update `agent/graph.py` to start with Product Manager:
 
 ```python
-from agent.nodes.pm import pm_node
+from agent.nodes.product_manager import product_manager_node
 from agent.nodes.approval_gate import approval_gate_node
 
 def build_graph():
     workflow = StateGraph(AgentState)
     
-    # Add PM at the start
-    workflow.add_node("pm", pm_node)
+    # Add Product Manager at the start
+    workflow.add_node("product_manager", product_manager_node)
     workflow.add_node("approval_gate", approval_gate_node)
     
     # ... existing nodes ...
     
-    workflow.set_entry_point("pm")
+    workflow.set_entry_point("product_manager")
     
     workflow.add_conditional_edges(
-        "pm",
+        "product_manager",
         lambda s: s["status"],
         {
             "prd_ready": "approval_gate",
@@ -264,6 +264,6 @@ def on_prd_rejected(issue_id: str, feedback: str):
     state["prd_feedback"] = feedback
     state["status"] = "drafting"
     
-    # Re-run PM node with feedback
-    result = app.invoke(state, {"start_at": "pm"})
+    # Re-run Product Manager node with feedback
+    result = app.invoke(state, {"start_at": "product_manager"})
 ```

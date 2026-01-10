@@ -3,7 +3,7 @@ from agent.state import AgentState
 MAX_ITERATIONS = 5
 
 
-def supervisor_node(state: AgentState) -> dict:
+def review_supervisor_node(state: AgentState) -> dict:
     """Decide whether to continue the review loop or finalize."""
     reviews = state.get("review_feedback", [])
     iteration = state.get("iteration_count", 0)

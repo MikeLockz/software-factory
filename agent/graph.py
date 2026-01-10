@@ -1,44 +1,47 @@
 from langgraph.graph import StateGraph, END
 from agent.state import AgentState
 from agent.nodes.classifier import classifier_node
-from agent.nodes.architect import architect_node
-from agent.nodes.contractor import contractor_node
+from agent.nodes.product_manager import product_manager_node
+from agent.nodes.approval_gate import approval_gate_node
+from agent.nodes.feature_engineer import feature_engineer_node
+from agent.nodes.contract_engineer import contract_engineer_node
 from agent.nodes.infra_engineer import infra_engineer_node
 from agent.nodes.software_engineer import software_engineer_node
-from agent.nodes.security import security_node
-from agent.nodes.compliance import compliance_node
-from agent.nodes.design import design_node
-from agent.nodes.supervisor import supervisor_node
-from agent.nodes.stack_manager import stack_manager_node
+from agent.nodes.security_engineer import security_engineer_node
+from agent.nodes.compliance_reviewer import compliance_reviewer_node
+from agent.nodes.design_reviewer import design_reviewer_node
+from agent.nodes.review_supervisor import review_supervisor_node
+from agent.nodes.pr_stack_manager import pr_stack_manager_node
 from agent.nodes.publisher import publisher_node
 from agent.nodes.deployer import deployer_node
 from agent.nodes.test_agent import test_agent_node
 from agent.nodes.telemetry import telemetry_node
 from agent.nodes.reverter import reverter_node
+from agent.nodes.implementation_engineer import implementation_engineer_node, implementation_engineer_correction_node, validation_node
 
 
 def route_from_classifier(state: AgentState) -> str:
     """Route based on request classification."""
     request_type = state.get("request_type", "general")
     if request_type == "requires_contract":
-        return "architect"
+        return "feature_engineer"
     elif request_type == "infrastructure":
         return "infra_engineer"
     else:
         return "software_engineer"
 
 
-def route_from_supervisor(state: AgentState) -> str:
-    """Route from supervisor based on status and request_type."""
+def route_from_review_supervisor(state: AgentState) -> str:
+    """Route from review supervisor based on status and request_type."""
     status = state["status"]
     if status == "approved":
         return "publisher"
     elif status == "drafting":
         request_type = state.get("request_type", "general")
         if state.get("work_items"):
-            return "contractor"
+            return "contract_engineer"
         if request_type == "requires_contract":
-            return "contractor"
+            return "contract_engineer"
         elif request_type == "infrastructure":
             return "infra_engineer"
         else:
@@ -47,11 +50,11 @@ def route_from_supervisor(state: AgentState) -> str:
         return "end"
 
 
-def route_from_stack_manager(state: AgentState) -> str:
+def route_from_pr_stack_manager(state: AgentState) -> str:
     """Route from stack manager based on current work."""
     status = state.get("status", "")
     if status.startswith("working_"):
-        return "contractor"
+        return "contract_engineer"
     elif status == "stack_complete":
         return "deployer"
     else:
@@ -64,10 +67,10 @@ def route_to_first_reviewer(state: AgentState) -> str:
     if current_work:
         work_type = current_work.get("type") if isinstance(current_work, dict) else current_work.type
         if work_type == "BACKEND":
-            return "compliance"
+            return "compliance_reviewer"
         elif work_type == "FRONTEND":
-            return "design"
-    return "security"
+            return "design_reviewer"
+    return "security_engineer"
 
 
 def route_from_publisher(state: AgentState) -> str:
@@ -75,7 +78,7 @@ def route_from_publisher(state: AgentState) -> str:
     work_items = state.get("work_items", [])
     current_index = state.get("current_work_index", 0)
     if work_items and current_index < len(work_items):
-        return "stack_manager"
+        return "pr_stack_manager"
     return "deployer"
 
 
@@ -94,77 +97,117 @@ def route_from_telemetry(state: AgentState) -> str:
     return "end"
 
 
+def route_from_product_manager(state: AgentState) -> str:
+    """Route based on PM status."""
+    status = state.get("status", "")
+    if status == "prd_ready":
+        return "approval_gate"
+    return "end"
+
+
+def route_from_validation(state: AgentState) -> str:
+    """Route based on validation status."""
+    validation_status = state.get("validation_status", "passed")
+    if validation_status == "failed":
+        return "implementation_engineer_correction"
+    # Route to first reviewer based on work item type
+    return route_to_first_reviewer(state)
+
+
 def build_graph():
     """Construct the Phase 3 agent workflow graph."""
     workflow = StateGraph(AgentState)
 
+    workflow.add_node("product_manager", product_manager_node)
+    workflow.add_node("approval_gate", approval_gate_node)
     workflow.add_node("classifier", classifier_node)
-    workflow.add_node("architect", architect_node)
-    workflow.add_node("stack_manager", stack_manager_node)
-    workflow.add_node("contractor", contractor_node)
+    workflow.add_node("feature_engineer", feature_engineer_node)
+    workflow.add_node("pr_stack_manager", pr_stack_manager_node)
+    workflow.add_node("contract_engineer", contract_engineer_node)
     workflow.add_node("infra_engineer", infra_engineer_node)
     workflow.add_node("software_engineer", software_engineer_node)
-    workflow.add_node("security", security_node)
-    workflow.add_node("compliance", compliance_node)
-    workflow.add_node("design", design_node)
-    workflow.add_node("supervisor", supervisor_node)
+    workflow.add_node("implementation_engineer", implementation_engineer_node)
+    workflow.add_node("validation", validation_node)
+    workflow.add_node("implementation_engineer_correction", implementation_engineer_correction_node)
+    workflow.add_node("security_engineer", security_engineer_node)
+    workflow.add_node("compliance_reviewer", compliance_reviewer_node)
+    workflow.add_node("design_reviewer", design_reviewer_node)
+    workflow.add_node("review_supervisor", review_supervisor_node)
     workflow.add_node("publisher", publisher_node)
     workflow.add_node("deployer", deployer_node)
     workflow.add_node("test_agent", test_agent_node)
     workflow.add_node("telemetry", telemetry_node)
     workflow.add_node("reverter", reverter_node)
 
-    workflow.set_entry_point("classifier")
+    workflow.set_entry_point("product_manager")
+
+    workflow.add_conditional_edges(
+        "product_manager",
+        route_from_product_manager,
+        {
+            "approval_gate": "approval_gate",
+            "end": END
+        }
+    )
+
+    # After approval, continue to classifier
+    workflow.add_edge("approval_gate", "classifier")
 
     workflow.add_conditional_edges(
         "classifier",
         route_from_classifier,
         {
-            "architect": "architect",
+            "feature_engineer": "feature_engineer",
             "infra_engineer": "infra_engineer",
             "software_engineer": "software_engineer"
         }
     )
 
-    workflow.add_edge("architect", "stack_manager")
+    workflow.add_edge("feature_engineer", "pr_stack_manager")
 
     workflow.add_conditional_edges(
-        "stack_manager",
-        route_from_stack_manager,
+        "pr_stack_manager",
+        route_from_pr_stack_manager,
         {
-            "contractor": "contractor",
+            "contract_engineer": "contract_engineer",
             "deployer": "deployer",
             "end": END
         }
     )
 
-    # Implementation nodes -> first reviewer
+    # Implementation nodes -> implementation_engineer -> validation -> reviewers
+    workflow.add_edge("contract_engineer", "implementation_engineer")
+    workflow.add_edge("infra_engineer", "implementation_engineer")
+    workflow.add_edge("software_engineer", "implementation_engineer")
+    
+    # Implementation Engineeer -> Validation
+    workflow.add_edge("implementation_engineer", "validation")
+    
+    # Validation routes to reviewers or back to correction
     workflow.add_conditional_edges(
-        "contractor",
-        route_to_first_reviewer,
-        {"security": "security", "compliance": "compliance", "design": "design"}
-    )
-    workflow.add_conditional_edges(
-        "infra_engineer",
-        route_to_first_reviewer,
-        {"security": "security", "compliance": "compliance", "design": "design"}
-    )
-    workflow.add_conditional_edges(
-        "software_engineer",
-        route_to_first_reviewer,
-        {"security": "security", "compliance": "compliance", "design": "design"}
-    )
-
-    # Specialized reviewers -> Security (series)
-    workflow.add_edge("compliance", "security")
-    workflow.add_edge("design", "security")
-    workflow.add_edge("security", "supervisor")
-
-    workflow.add_conditional_edges(
-        "supervisor",
-        route_from_supervisor,
+        "validation",
+        route_from_validation,
         {
-            "contractor": "contractor",
+            "implementation_engineer_correction": "implementation_engineer_correction",
+            "security_engineer": "security_engineer",
+            "compliance_reviewer": "compliance_reviewer",
+            "design_reviewer": "design_reviewer"
+        }
+    )
+    
+    # Correction loops back to validation
+    workflow.add_edge("implementation_engineer_correction", "validation")
+
+    # Specialized reviewers -> Security Engineer (series)
+    workflow.add_edge("compliance_reviewer", "security_engineer")
+    workflow.add_edge("design_reviewer", "security_engineer")
+    workflow.add_edge("security_engineer", "review_supervisor")
+
+    workflow.add_conditional_edges(
+        "review_supervisor",
+        route_from_review_supervisor,
+        {
+            "contract_engineer": "contract_engineer",
             "infra_engineer": "infra_engineer",
             "software_engineer": "software_engineer",
             "publisher": "publisher",
@@ -175,7 +218,7 @@ def build_graph():
     workflow.add_conditional_edges(
         "publisher",
         route_from_publisher,
-        {"stack_manager": "stack_manager", "deployer": "deployer"}
+        {"pr_stack_manager": "pr_stack_manager", "deployer": "deployer"}
     )
 
     workflow.add_edge("deployer", "test_agent")

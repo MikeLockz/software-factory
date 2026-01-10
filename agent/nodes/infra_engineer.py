@@ -3,12 +3,15 @@ import re
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.state import AgentState
+from agent.config.context import get_context_for_prompt
 
 load_dotenv()
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash-001", temperature=0)
 
 INFRA_ENGINEER_PROMPT = """You are an Infrastructure Engineer.
 Your job is to take an infrastructure task and produce implementation artifacts.
+
+{project_context}
 
 Task: {task_description}
 
@@ -36,6 +39,7 @@ def infra_engineer_node(state: AgentState) -> dict:
     ) or "None - this is the first draft."
 
     prompt = INFRA_ENGINEER_PROMPT.format(
+        project_context=get_context_for_prompt(),
         task_description=state["task_description"],
         feedback=feedback_str
     )

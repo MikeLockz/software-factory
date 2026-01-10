@@ -5,7 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.state import AgentState, ReviewFeedback
 
 load_dotenv()
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
 DESIGN_PROMPT = """You are a Design System Purist reviewing frontend code.
 
@@ -30,7 +30,7 @@ Approve if the code follows reasonable design patterns.
 """
 
 
-def design_node(state: AgentState) -> dict:
+def design_reviewer_node(state: AgentState) -> dict:
     """Review frontend code for design consistency."""
     content = state.get("current_contract") or ""
 

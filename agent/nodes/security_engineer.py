@@ -5,7 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.state import AgentState, ReviewFeedback
 
 load_dotenv()
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
 SECURITY_PROMPT = """You are a Security Engineer reviewing a data contract for a healthcare application.
 
@@ -30,7 +30,7 @@ If fields mention validation, sanitization, or proper types, that's sufficient.
 """
 
 
-def security_node(state: AgentState) -> dict:
+def security_engineer_node(state: AgentState) -> dict:
     """Review the contract for security issues."""
     prompt = SECURITY_PROMPT.format(
         contract=state.get("current_contract", "{}")
@@ -51,14 +51,14 @@ def security_node(state: AgentState) -> dict:
     try:
         data = json.loads(content)
         feedback = ReviewFeedback(
-            agent="security",
+            agent="security_engineer",
             approved=data.get("approved", False),
             concerns=data.get("concerns", []),
             suggestions=data.get("suggestions", [])
         )
     except (json.JSONDecodeError, ValueError):
         feedback = ReviewFeedback(
-            agent="security",
+            agent="security_engineer",
             approved=False,
             concerns=["Failed to parse security review response"],
             suggestions=["Retry the review"]

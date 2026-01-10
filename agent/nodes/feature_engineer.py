@@ -3,11 +3,14 @@ import re
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.state import AgentState
+from agent.config.context import get_context_for_prompt
 
 load_dotenv()
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
 ARCHITECT_PROMPT = """You are a Software Architect breaking down a feature into stacked PRs.
+
+{project_context}
 
 Feature Request:
 {task_description}
@@ -45,9 +48,10 @@ Output JSON:
 """
 
 
-def architect_node(state: AgentState) -> dict:
+def feature_engineer_node(state: AgentState) -> dict:
     """Break down a feature into stacked work items."""
     prompt = ARCHITECT_PROMPT.format(
+        project_context=get_context_for_prompt(),
         task_description=state["task_description"]
     )
 

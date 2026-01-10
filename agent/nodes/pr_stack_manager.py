@@ -2,7 +2,7 @@ from agent.state import AgentState
 from agent.tools.git import create_branch
 
 
-def stack_manager_node(state: AgentState) -> dict:
+def pr_stack_manager_node(state: AgentState) -> dict:
     """Manage the stacked PR workflow."""
     work_items = state.get("work_items", [])
     current_index = state.get("current_work_index", 0)

@@ -3,12 +3,15 @@ import re
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from agent.state import AgentState
+from agent.config.context import get_context_for_prompt
 
 load_dotenv()
-llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", temperature=0)
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0)
 
 SOFTWARE_ENGINEER_PROMPT = """You are a Software Engineer.
 Your job is to take a feature request and produce code implementation artifacts.
+
+{project_context}
 
 Task: {task_description}
 
@@ -37,6 +40,7 @@ def software_engineer_node(state: AgentState) -> dict:
     ) or "None - this is the first draft."
 
     prompt = SOFTWARE_ENGINEER_PROMPT.format(
+        project_context=get_context_for_prompt(),
         task_description=state["task_description"],
         feedback=feedback_str
     )
