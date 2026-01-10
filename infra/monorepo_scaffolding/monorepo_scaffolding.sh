@@ -1,89 +1,148 @@
-#!/usr/bin/env bash
+#!/bin/bash
+
+# Monorepo Scaffolding Script
 
 set -euo pipefail
 
-# Define project name
-PROJECT_NAME="lockdev-saas-starter"
+MONOREPO_NAME="lockdev-saas-starter"
 
-# Define directories
-ROOT_DIR="."
-APPS_DIR="${ROOT_DIR}/apps"
-PACKAGES_DIR="${ROOT_DIR}/packages"
-INFRA_DIR="${ROOT_DIR}/infra"
-DOCS_DIR="${ROOT_DIR}/docs"
+# Create the monorepo directory
+mkdir -p "$MONOREPO_NAME"
+cd "$MONOREPO_NAME"
 
-# Create directories
-mkdir -p "${APPS_DIR}"
-mkdir -p "${PACKAGES_DIR}"
-mkdir -p "${INFRA_DIR}"
-mkdir -p "${DOCS_DIR}"
+# Initialize git repository
+git init
 
-# Create example apps (frontend, backend, worker)
-mkdir -p "${APPS_DIR}/frontend"
-mkdir -p "${APPS_DIR}/backend"
-mkdir -p "${APPS_DIR}/worker"
-
-# Create example packages (ui-components, utils)
-mkdir -p "${PACKAGES_DIR}/ui-components"
-mkdir -p "${PACKAGES_DIR}/utils"
-
-# Create infra directories (opentofu, aptible)
-mkdir -p "${INFRA_DIR}/opentofu"
-mkdir -p "${INFRA_DIR}/aptible"
-
-# Create docs directories (requirements, architecture)
-mkdir -p "${DOCS_DIR}/requirements"
-mkdir -p "${DOCS_DIR}/architecture"
+# Create essential directories
+mkdir -p apps/ui apps/api apps/worker infra docs
 
 # Create a basic Makefile
-cat > "${ROOT_DIR}/Makefile" <<EOF
-.PHONY: install build lint format typecheck test
+cat > Makefile <<EOF
+.PHONY: install lint format typecheck test build deploy
 
 install:
 	pnpm install
 
+lint:
+	biome check --apply ./apps/ui ./apps/api ./apps/worker
+
+format:
+	prettier --write ./
+
+typecheck:
+	tsc --noEmit
+
+test:
+	vitest run
+
 build:
 	pnpm build
 
-lint:
-	pnpm lint
-
-format:
-	pnpm format
-
-typecheck:
-	pnpm typecheck
-
-test:
-	pnpm test
-
-.DEFAULT_GOAL := build
+deploy:
+	# Placeholder for deployment script
+	echo "Deployment script needs to be implemented"
 EOF
 
-# Create a basic pnpm-workspace.yaml
-cat > "${ROOT_DIR}/pnpm-workspace.yaml" <<EOF
-packages:
-  - 'apps/*'
-  - 'packages/*'
+# Create a basic README.md
+cat > README.md <<EOF
+# $MONOREPO_NAME
+
+Monorepo for LockDev SaaS Starter project.
 EOF
 
-# Create a basic .gitignore
-cat > "${ROOT_DIR}/.gitignore" <<EOF
+# Create a basic .gitignore file
+cat > .gitignore <<EOF
 node_modules
-.DS_Store
 .env
+.DS_Store
+/dist
+/build
 .terraform
 terraform.tfstate
 terraform.tfstate.backup
 .sops.cache
-.age
 EOF
 
-# Initialize a README.md
-cat > "${ROOT_DIR}/README.md" <<EOF
-# ${PROJECT_NAME}
-
-A monorepo for the LockDev SaaS Starter project.
+# Create a basic pnpm-workspace.yaml
+cat > pnpm-workspace.yaml <<EOF
+packages:
+  - 'apps/*'
 EOF
 
-echo "Monorepo scaffolding created."
+# Create a basic pre-commit-config.yaml
+cat > .pre-commit-config.yaml <<EOF
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+    -   id: check-merge-conflict
+-   repo: https://github.com/prettier/prettier-pre-commit
+    rev: v3.1.0
+    hooks:
+    -   id: prettier
+-   repo: https://github.com/ikamensh/flynt
+    rev: 1.0.0
+    hooks:
+    -   id: flynt
+
+EOF
+
+# Initialize pnpm
+pnpm init
+
+# Install prettier, biome, typescript, vitest, pre-commit
+pnpm add -D prettier @biomejs/biome typescript vitest pre-commit
+
+# Create a basic tsconfig.json
+cat > tsconfig.json <<EOF
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "jsx": "react-jsx",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
+}
+EOF
+
+# Create a basic biome.json
+cat > biome.json <<EOF
+{
+	"$schema": "https://biomejs.dev/schemas/1.5.3/schema.json",
+	"organizeImports": {
+		"enabled": true
+	},
+	"linter": {
+		"enabled": true,
+		"rules": {
+			"recommended": true
+		}
+	},
+	"formatter": {
+		"enabled": true,
+		"formatWithErrors": false,
+		"indentStyle": "space",
+		"indentWidth": 2,
+		"lineWidth": 120
+	}
+}
+EOF
+
+# Initialize pre-commit
+pre-commit install
+
+echo "Monorepo scaffolding complete.  Run 'make install' to install dependencies."
