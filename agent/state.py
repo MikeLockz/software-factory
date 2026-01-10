@@ -35,11 +35,14 @@ class AgentState(TypedDict):
     current_contract: Optional[str]
     review_feedback: List[ReviewFeedback]
     iteration_count: int
-    status: Literal["drafting", "reviewing", "approved", "failed", "published", "architected", "stack_complete", "working_contract", "working_backend", "working_frontend"]
+    status: Literal["drafting", "reviewing", "approved", "failed", "published", "architected", "stack_complete", "working_contract", "working_backend", "working_frontend", "prd_ready", "prd_approved", "spec_ready", "awaiting_technical_review", "awaiting_prd_review"]
     messages: List[str]
     # Phase 2: Linear integration
     current_issue: Optional[Any]
     pr_url: Optional[str]
+    # Product Manager
+    prd: Optional[Any]
+    prd_feedback: Optional[str]
     # Request classification
     request_type: Optional[Literal["requires_contract", "infrastructure", "general"]]
     # Phase 3: Stacked PRs
@@ -61,3 +64,8 @@ class AgentState(TypedDict):
     # Phase 3: Revert
     revert_status: Optional[str]
     reverted_commit: Optional[str]
+    # Issue type routing
+    is_sub_issue: Optional[bool]
+    parent_issue: Optional[Any]
+    # Technical spec from planner nodes
+    technical_spec: Optional[Any]

@@ -24,6 +24,17 @@ def poll_and_process():
 
     for issue in issues:
         print(f"\n📋 Processing: {issue.identifier} - {issue.title}")
+        
+        # Detect if this is a sub-issue
+        is_sub = issue.parent_id is not None
+        if is_sub:
+            print(f"   📎 Sub-issue of parent: {issue.parent_id}")
+        
+        # Detect if PRD has already been added (issue coming back after human review)
+        # PRD marker is added by approval_gate when it updates the description
+        has_prd = issue.description and "## Problem Statement" in issue.description
+        if has_prd and not is_sub:
+            print(f"   📋 PRD detected in description - skipping product manager")
 
         # Transition to In Progress
         adapter.transition_issue(issue.id, "AI: In Progress")
@@ -52,7 +63,13 @@ def poll_and_process():
             "error_count": None,
             "action": None,
             "revert_status": None,
-            "reverted_commit": None
+            "reverted_commit": None,
+            # Sub-issue OR has PRD already = skip product manager
+            "is_sub_issue": is_sub or has_prd,
+            "parent_issue": None,
+            "technical_spec": None,
+            "prd": None,
+            "prd_feedback": None
         }
 
         try:

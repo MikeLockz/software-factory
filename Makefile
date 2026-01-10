@@ -23,3 +23,7 @@ poll:
 # Run a single poll cycle (no loop)
 poll-once:
 	PYTHONPATH=. python -c "from agent.poll import poll_and_process; poll_and_process()"
+
+# Setup Linear workflow states
+setup-linear:
+	PYTHONPATH=. python -c "from dotenv import load_dotenv; load_dotenv(); from agent.adapters.linear_adapter import LinearAdapter; import os; LinearAdapter().ensure_workflow_states(os.getenv('LINEAR_TEAM_KEY', 'ENG'))"

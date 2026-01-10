@@ -1,10 +1,16 @@
 from langgraph.graph import StateGraph, END
 from agent.state import AgentState
+from agent.nodes.product_manager import product_manager_node
+from agent.nodes.approval_gate import approval_gate_node
 from agent.nodes.classifier import classifier_node
 from agent.nodes.architect import architect_node
 from agent.nodes.contractor import contractor_node
+from agent.nodes.contractor_planner import contractor_planner_node
 from agent.nodes.infra_engineer import infra_engineer_node
+from agent.nodes.infra_engineer_planner import infra_engineer_planner_node
 from agent.nodes.software_engineer import software_engineer_node
+from agent.nodes.software_engineer_planner import software_engineer_planner_node
+from agent.nodes.sub_issue_handler import sub_issue_handler_node
 from agent.nodes.security import security_node
 from agent.nodes.compliance import compliance_node
 from agent.nodes.design import design_node
@@ -17,15 +23,35 @@ from agent.nodes.telemetry import telemetry_node
 from agent.nodes.reverter import reverter_node
 
 
+def route_entry_point(state: AgentState) -> str:
+    """Route based on whether this is a sub-issue (skip PM) or parent issue."""
+    if state.get("is_sub_issue"):
+        print("   📎 Sub-issue detected - skipping product manager, going to classifier")
+        return "classifier"
+    return "product_manager"
+
+
 def route_from_classifier(state: AgentState) -> str:
-    """Route based on request classification."""
+    """Route based on request classification and whether it's a sub-issue."""
+    is_sub = state.get("is_sub_issue", False)
     request_type = state.get("request_type", "general")
-    if request_type == "requires_contract":
-        return "architect"
-    elif request_type == "infrastructure":
-        return "infra_engineer"
+
+    if is_sub:
+        # Sub-issue: go directly to implementation
+        if request_type == "requires_contract":
+            return "contractor"
+        elif request_type == "infrastructure":
+            return "infra_engineer"
+        else:
+            return "software_engineer"
     else:
-        return "software_engineer"
+        # Parent issue: go to planner first
+        if request_type == "requires_contract":
+            return "contractor_planner"
+        elif request_type == "infrastructure":
+            return "infra_engineer_planner"
+        else:
+            return "software_engineer_planner"
 
 
 def route_from_supervisor(state: AgentState) -> str:
@@ -94,38 +120,125 @@ def route_from_telemetry(state: AgentState) -> str:
     return "end"
 
 
+def route_from_product_manager(state: AgentState) -> str:
+    """Route from product manager based on PRD status."""
+    status = state.get("status", "")
+    if status == "prd_ready":
+        return "approval_gate"
+    return "end"
+
+
+def route_from_approval_gate(state: AgentState) -> str:
+    """Route from approval gate - end flow, wait for human to move issue back."""
+    # Both prd_approved (legacy) and awaiting_prd_review end the flow
+    # Human will move issue back to "AI: Ready" when approved
+    # poll.py will pick it up and is_sub_issue=False + prd exists = skip PM
+    return "end"
+
+
+def route_from_planner(state: AgentState) -> str:
+    """Route from planner nodes - go to sub-issue handler."""
+    status = state.get("status", "")
+    if status == "spec_ready":
+        return "sub_issue_handler"
+    return "end"
+
+
 def build_graph():
-    """Construct the Phase 3 agent workflow graph."""
+    """Construct the Phase 3 agent workflow graph with technical review flow."""
     workflow = StateGraph(AgentState)
 
+    # Entry router (determines if sub-issue or parent)
+    workflow.add_node("entry_router", lambda state: state)  # Pass-through
+
+    # Product Manager nodes
+    workflow.add_node("product_manager", product_manager_node)
+    workflow.add_node("approval_gate", approval_gate_node)
+    
+    # Classifier
     workflow.add_node("classifier", classifier_node)
+    
+    # Planner nodes (for parent issues)
+    workflow.add_node("contractor_planner", contractor_planner_node)
+    workflow.add_node("software_engineer_planner", software_engineer_planner_node)
+    workflow.add_node("infra_engineer_planner", infra_engineer_planner_node)
+    workflow.add_node("sub_issue_handler", sub_issue_handler_node)
+    
+    # Implementation nodes (for sub-issues)
     workflow.add_node("architect", architect_node)
     workflow.add_node("stack_manager", stack_manager_node)
     workflow.add_node("contractor", contractor_node)
     workflow.add_node("infra_engineer", infra_engineer_node)
     workflow.add_node("software_engineer", software_engineer_node)
+    
+    # Review nodes
     workflow.add_node("security", security_node)
     workflow.add_node("compliance", compliance_node)
     workflow.add_node("design", design_node)
     workflow.add_node("supervisor", supervisor_node)
+    
+    # Publishing & deployment nodes
     workflow.add_node("publisher", publisher_node)
     workflow.add_node("deployer", deployer_node)
     workflow.add_node("test_agent", test_agent_node)
     workflow.add_node("telemetry", telemetry_node)
     workflow.add_node("reverter", reverter_node)
 
-    workflow.set_entry_point("classifier")
+    # Entry point: router decides if sub-issue or parent
+    workflow.set_entry_point("entry_router")
+    workflow.add_conditional_edges(
+        "entry_router",
+        route_entry_point,
+        {"product_manager": "product_manager", "classifier": "classifier"}
+    )
 
+    # Product Manager -> Approval Gate -> Classifier (for parent issues)
+    workflow.add_conditional_edges(
+        "product_manager",
+        route_from_product_manager,
+        {"approval_gate": "approval_gate", "end": END}
+    )
+    workflow.add_conditional_edges(
+        "approval_gate",
+        route_from_approval_gate,
+        {"classifier": "classifier", "end": END}
+    )
+
+    # Classifier routes to planners (parent) or implementation (sub-issue)
     workflow.add_conditional_edges(
         "classifier",
         route_from_classifier,
         {
-            "architect": "architect",
+            # Parent issue routes (planners)
+            "contractor_planner": "contractor_planner",
+            "software_engineer_planner": "software_engineer_planner",
+            "infra_engineer_planner": "infra_engineer_planner",
+            # Sub-issue routes (implementation) - requires_contract goes to architect
+            "contractor": "architect",  # Contract requests still go through architect->stack_manager
             "infra_engineer": "infra_engineer",
             "software_engineer": "software_engineer"
         }
     )
 
+    # Planners -> Sub-issue handler -> END (wait for human)
+    workflow.add_conditional_edges(
+        "contractor_planner",
+        route_from_planner,
+        {"sub_issue_handler": "sub_issue_handler", "end": END}
+    )
+    workflow.add_conditional_edges(
+        "software_engineer_planner",
+        route_from_planner,
+        {"sub_issue_handler": "sub_issue_handler", "end": END}
+    )
+    workflow.add_conditional_edges(
+        "infra_engineer_planner",
+        route_from_planner,
+        {"sub_issue_handler": "sub_issue_handler", "end": END}
+    )
+    workflow.add_edge("sub_issue_handler", END)
+
+    # Architect -> Stack Manager (for contract requests)
     workflow.add_edge("architect", "stack_manager")
 
     workflow.add_conditional_edges(
