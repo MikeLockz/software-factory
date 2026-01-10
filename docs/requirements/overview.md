@@ -1,33 +1,27 @@
-# Project Overview
+# Software Factory Overview
 
-This is the Software Factory - an agent-based system for automating software development workflows.
+The Software Factory is an AI-powered development automation system that:
+
+1. **Polls Linear** for issues in the "AI: Ready" state
+2. **Generates PRDs** with structured user stories and acceptance criteria
+3. **Classifies requests** as contract, infrastructure, or general
+4. **Implements code** based on the PRD specifications
+5. **Reviews implementations** through security, compliance, and design reviewers
+6. **Creates PRs** with meaningful commits and descriptions
 
 ## Architecture
 
-The system uses LangGraph to orchestrate multiple specialized agents:
+- **LangGraph** for workflow orchestration
+- **Gemini** for LLM operations
+- **Linear** for issue tracking
+- **GitHub** for version control and PRs
 
-- **Product Manager**: Converts issues into structured PRDs with user stories and acceptance criteria
-- **Classifier**: Routes tasks to appropriate specialized agents based on task type
-- **Implementation Engineer**: Generates code using Claude Code CLI
-- **Infra Engineer**: Handles infrastructure-related tasks
-- **Architect**: Designs system architecture and technical specifications
+## Agents
 
-## Tech Stack
-
-### Backend
-- Python with FastAPI
-- SQLAlchemy with Alembic for database migrations
-- Pydantic for data validation
-
-### Frontend
-- React with TypeScript
-- Vite for build tooling
-- TanStack Query/Router/Form
-- Shadcn UI components
-
-## Coding Standards
-
-- All code must pass linting (`make lint`)
-- TypeScript for frontend, Python for backend
-- Use structured logging with Structlog
-- Follow existing patterns in the codebase
+- **Product Manager** - Converts vague ideas into structured PRDs
+- **Classifier** - Routes requests to appropriate implementation agents
+- **Architect** - Designs contract schemas for API work
+- **Software Engineer** - Implements general code changes
+- **Infra Engineer** - Handles infrastructure and DevOps tasks
+- **Reviewers** - Security, compliance, and design review
+- **Publisher** - Creates branches and PRs
