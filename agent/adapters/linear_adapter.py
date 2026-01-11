@@ -360,7 +360,7 @@ class LinearAdapter:
     def get_sub_issues(self, parent_id: str) -> List[LinearIssue]:
         """Get all sub-issues of a parent issue."""
         query = '''
-        query GetSubIssues($parentId: ID!) {
+        query GetSubIssues($parentId: String!) {
             issue(id: $parentId) {
                 children {
                     nodes {
@@ -395,7 +395,7 @@ class LinearAdapter:
     def get_issue_comments(self, issue_id: str) -> List[str]:
         """Get all comments on an issue."""
         query = '''
-        query GetComments($issueId: ID!) {
+        query GetComments($issueId: String!) {
             issue(id: $issueId) {
                 comments {
                     nodes {
@@ -412,7 +412,7 @@ class LinearAdapter:
     def get_issue_by_id(self, issue_id: str) -> Optional[LinearIssue]:
         """Get an issue by its ID."""
         query = '''
-        query GetIssue($id: ID!) {
+        query GetIssue($id: String!) {
             issue(id: $id) {
                 id
                 identifier
