@@ -60,12 +60,23 @@ Output JSON:
 
 def infra_engineer_planner_node(state: AgentState) -> dict:
     """Generate a technical spec for infrastructure changes."""
-    prd = state.get("prd") or {}
-    if prd:
-        prd_summary = f"{prd.get('title', 'N/A')}: {prd.get('problem_statement', 'N/A')}"
-    else:
-        # PRD is in the issue description - use task_description which includes it
-        prd_summary = state.get("task_description", "No PRD available")
+    # Fetch fresh issue content from Linear - PRD is in the description after approval
+    issue = state.get("current_issue")
+    prd_content = ""
+    
+    if issue:
+        from agent.adapters.linear_adapter import LinearAdapter
+        try:
+            adapter = LinearAdapter()
+            fresh_issue = adapter.get_issue_by_id(issue.id)
+            if fresh_issue and fresh_issue.description:
+                prd_content = fresh_issue.description
+                print(f"   📄 Fetched fresh PRD from Linear issue {fresh_issue.identifier}")
+        except Exception as e:
+            print(f"   ⚠️ Could not fetch fresh issue: {e}")
+    
+    # Use fresh content, or fall back to task_description
+    prd_summary = prd_content if prd_content else state.get("task_description", "No PRD available")
 
     prompt = INFRA_ENGINEER_PLANNER_PROMPT.format(
         project_context=get_context_for_prompt(),
