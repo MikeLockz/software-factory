@@ -13,6 +13,9 @@ CONTRACTOR_PLANNER_PROMPT = """You are a Senior Software Architect creating a te
 PRD (Product Requirements Document):
 {prd_content}
 
+Additional Context (Comments):
+{comments}
+
 Create a detailed technical specification including:
 
 1. **Schema Design**: Field names, types, validation rules
@@ -57,8 +60,17 @@ def contractor_planner_node(state: AgentState) -> dict:
             if fresh_issue and fresh_issue.description:
                 prd_content = fresh_issue.description
                 print(f"   📄 Fetched fresh PRD from Linear issue {fresh_issue.identifier}")
+
+            # Fetch comments
+            comments = adapter.get_issue_comments(issue.id)
+            if comments:
+                comments_text = "\n\n".join(comments)
+                print(f"   💬 Fetched {len(comments)} comments")
+            else:
+                comments_text = "No comments available."
         except Exception as e:
-            print(f"   ⚠️ Could not fetch fresh issue: {e}")
+            print(f"   ⚠️ Could not fetch fresh issue or comments: {e}")
+            comments_text = "Could not fetch comments."
     
     # Use fresh content, or fall back to task_description
     if not prd_content:
@@ -66,7 +78,8 @@ def contractor_planner_node(state: AgentState) -> dict:
 
     prompt = CONTRACTOR_PLANNER_PROMPT.format(
         project_context=get_context_for_prompt(),
-        prd_content=prd_content
+        prd_content=prd_content,
+        comments=comments_text
     )
 
     # Run Claude Code CLI
