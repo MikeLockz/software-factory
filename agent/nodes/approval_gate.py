@@ -71,9 +71,12 @@ def approval_gate_node(state: AgentState) -> dict:
         try:
             from agent.adapters.linear_adapter import LinearAdapter
             adapter = LinearAdapter()
+            # Save original ticket content as a comment before overwriting
+            original_description = issue.description
+            if original_description:
+                adapter.add_comment(issue.id, f"## Original ticket request\n\n{original_description}")
             # Replace the ticket description with the PRD
             adapter.update_issue_description(issue.id, prd_markdown)
-            adapter.add_comment(issue.id, "## 📋 PRD Ready for Review\n\nPlease review the PRD above. When approved, move this issue to **AI: Create ERD** to continue with technical planning.")
             # Move to Human: Review PRD for human approval
             adapter.transition_issue(issue.id, "Human: Review PRD")
             print(f"   ✅ Posted PRD to Linear issue {issue.identifier}")

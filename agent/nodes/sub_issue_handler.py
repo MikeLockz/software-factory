@@ -131,13 +131,6 @@ def sub_issue_handler_node(state: AgentState) -> dict:
             print(f"      Title: {sub_issue_title}")
             print(f"      State: Human: Review ERD")
             
-            # Add comment to parent issue
-            adapter.add_comment(
-                issue.id,
-                f"📐 ERD created as sub-issue: **{sub_issue.identifier}**\n\n"
-                f"Awaiting human review in 'Human: Review ERD' column. Move to 'AI: Implement' when approved."
-            )
-            
             # Transition parent issue to In Progress (waiting for sub-issues to complete)
             adapter.transition_issue(issue.id, "AI: In Progress")
             
