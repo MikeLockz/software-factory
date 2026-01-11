@@ -21,8 +21,14 @@ Previous Feedback (if any):
 
 Create a comprehensive PRD with:
 
+IMPORTANT:
+- STRICTLY ADHERE to the user request.
+- Do NOT halluncinate or invent features that are not explicitly asked for or strictly necessary.
+- If the request is simple, keep the PRD simple and focused.
+- Avoid "padding" the PRD with generic features (e.g., "User Authentication" or "Dashboard") unless requested.
+
 1. **Problem Statement**: What problem does this solve? Who is affected?
-2. **User Stories**: 3-5 user stories in "As a [user], I want [goal], so that [benefit]" format
+2. **User Stories**: 3-5 user stories in "As a [user], I want [goal], so that [benefit]" format (ONLY relevant stories)
 3. **Acceptance Criteria**: For EACH user story, write 1-3 Gherkin-formatted scenarios using Given/When/Then syntax
 4. **Edge Cases**: What could go wrong? What are the boundary conditions?
 5. **Out of Scope**: What are we explicitly NOT building?
