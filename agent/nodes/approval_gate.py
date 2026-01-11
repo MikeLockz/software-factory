@@ -20,13 +20,43 @@ def format_gherkin_criteria(criteria: list) -> str:
 
 def format_prd_for_review(prd: dict) -> str:
     """Format PRD as markdown for human review."""
-    stories_parts = []
+    # Format User Stories
+    user_stories = []
     for s in prd.get("user_stories", []):
-        story_header = f"### As a **{s.get('as_a', 'user')}**, I want **{s.get('i_want', 'feature')}**, so that **{s.get('so_that', 'benefit')}**"
-        criteria = format_gherkin_criteria(s.get('acceptance_criteria', []))
-        stories_parts.append(f"{story_header}\n\n#### Acceptance Criteria\n{criteria}")
+        sid = s.get('id', '')
+        header = f"### {sid} As a **{s.get('as_a', 'user')}**, I want **{s.get('i_want', 'feature')}**, so that **{s.get('so_that', 'benefit')}**"
+        user_stories.append(header)
     
-    stories = "\n\n".join(stories_parts)
+    stories_section = "\n\n".join(user_stories)
+
+    # Format Acceptance Criteria (grouped by story)
+    ac_list = prd.get("acceptance_criteria", [])
+    # Fallback for old format if nested
+    if not ac_list:
+        # Check if AC resides inside user stories (legacy support)
+        for s in prd.get("user_stories", []):
+            if "acceptance_criteria" in s:
+                for ac in s["acceptance_criteria"]:
+                    # Assign temp story_id if missing
+                    if isinstance(ac, dict):
+                        ac["story_id"] = s.get("id", "Unknown")
+                    ac_list.append(ac)
+
+    # Group AC by story ID
+    ac_by_story = {}
+    for ac in ac_list:
+        sid = ac.get("story_id", "General")
+        if sid not in ac_by_story:
+            ac_by_story[sid] = []
+        ac_by_story[sid].append(ac)
+
+    ac_parts = []
+    for sid, criteria in ac_by_story.items():
+        ac_header = f"#### {sid}"
+        ac_text = format_gherkin_criteria(criteria)
+        ac_parts.append(f"{ac_header}\n{ac_text}")
+
+    ac_section = "\n\n".join(ac_parts) if ac_parts else "No acceptance criteria defined."
 
     return f"""# {prd.get('title', 'Untitled')}
 
@@ -34,7 +64,10 @@ def format_prd_for_review(prd: dict) -> str:
 {prd.get('problem_statement', 'N/A')}
 
 ## User Stories
-{stories}
+{stories_section}
+
+## Acceptance Criteria
+{ac_section}
 
 ## Edge Cases
 {chr(10).join('- ' + e for e in prd.get('edge_cases', []))}

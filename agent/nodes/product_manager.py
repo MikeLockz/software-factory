@@ -28,8 +28,8 @@ IMPORTANT:
 - Avoid "padding" the PRD with generic features (e.g., "User Authentication" or "Dashboard") unless requested.
 
 1. **Problem Statement**: What problem does this solve? Who is affected?
-2. **User Stories**: 3-5 user stories in "As a [user], I want [goal], so that [benefit]" format (ONLY relevant stories)
-3. **Acceptance Criteria**: For EACH user story, write 1-3 Gherkin-formatted scenarios using Given/When/Then syntax
+2. **User Stories**: 3-5 user stories in "As a [user], I want [goal], so that [benefit]" format (ONLY relevant stories). Assign a unique ID to each (e.g., "US-1").
+3. **Acceptance Criteria**: For EACH user story, write 1-3 Gherkin-formatted scenarios using Given/When/Then syntax. These must be in a separate list, linked by User Story ID.
 4. **Edge Cases**: What could go wrong? What are the boundary conditions?
 5. **Out of Scope**: What are we explicitly NOT building?
 6. **Success Metrics**: How do we measure success?
@@ -40,17 +40,20 @@ Output JSON:
   "problem_statement": "Clear problem description",
   "user_stories": [
     {{
+      "id": "US-1",
       "as_a": "user type",
       "i_want": "goal",
-      "so_that": "benefit",
-      "acceptance_criteria": [
-        {{
-          "scenario": "Descriptive scenario name",
-          "given": "the initial context or precondition",
-          "when": "the action or trigger occurs",
-          "then": "the expected outcome or result"
-        }}
-      ]
+      "so_that": "benefit"
+    }}
+  ],
+  "acceptance_criteria": [
+    {{
+      "id": "AC-1",
+      "story_id": "US-1",
+      "scenario": "Descriptive scenario name",
+      "given": "the initial context or precondition",
+      "when": "the action or trigger occurs",
+      "then": "the expected outcome or result"
     }}
   ],
   "edge_cases": ["edge case 1", "edge case 2"],
