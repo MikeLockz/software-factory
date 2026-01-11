@@ -79,12 +79,15 @@ def product_manager_node(state: AgentState) -> dict:
 
     try:
         prd = json.loads(content)
+        if prd is None:
+             raise ValueError("Parsed JSON is null")
+             
         print(f"   📋 Product Manager created PRD: {prd.get('title', 'Untitled')}")
         print(f"      User stories: {len(prd.get('user_stories', []))}")
         print(f"      Priority: {prd.get('priority', 'P1')} | Complexity: {prd.get('estimated_complexity', 'M')}")
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, ValueError) as e:
         prd = {"error": "Failed to parse PRD", "raw": content[:500]}
-        print("   ⚠️ Product Manager could not parse PRD response")
+        print(f"   ⚠️ Product Manager could not parse PRD response: {e}")
 
     return {
         "prd": prd,
