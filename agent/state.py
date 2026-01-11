@@ -69,3 +69,5 @@ class AgentState(TypedDict):
     parent_issue: Optional[Any]
     # Technical spec from planner nodes
     technical_spec: Optional[Any]
+    # Workflow phase (prd, erd, implement)
+    workflow_phase: Optional[Literal["prd", "erd", "implement"]]

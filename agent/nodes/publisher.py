@@ -112,7 +112,7 @@ def publisher_node(state: AgentState) -> dict:
 
     if success:
         adapter = LinearAdapter()
-        adapter.transition_issue(issue.id, "AI: Review")
+        adapter.transition_issue(issue.id, "Human: Review PR")
         adapter.add_comment(issue.id, f"✅ PR created: {pr_result}")
 
         return {

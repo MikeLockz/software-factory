@@ -55,11 +55,11 @@ def approval_gate_node(state: AgentState) -> dict:
             adapter = LinearAdapter()
             # Replace the ticket description with the PRD
             adapter.update_issue_description(issue.id, prd_markdown)
-            adapter.add_comment(issue.id, "## 📋 PRD Ready for Review\n\nPlease review the PRD above. When approved, move this issue back to **AI: Ready** to continue implementation.")
-            # Move to Human: Review for human approval
-            adapter.transition_issue(issue.id, "Human: Review")
+            adapter.add_comment(issue.id, "## 📋 PRD Ready for Review\n\nPlease review the PRD above. When approved, move this issue to **AI: Create ERD** to continue with technical planning.")
+            # Move to Human: Review PRD for human approval
+            adapter.transition_issue(issue.id, "Human: Review PRD")
             print(f"   ✅ Posted PRD to Linear issue {issue.identifier}")
-            print(f"   ⏸️  Moved to 'Human: Review' - waiting for human approval")
+            print(f"   ⏸️  Moved to 'Human: Review PRD' - waiting for human approval")
         except Exception as e:
             print(f"   ⚠️ Could not post to Linear: {e}")
 

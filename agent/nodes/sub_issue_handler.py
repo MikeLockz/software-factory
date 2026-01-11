@@ -123,23 +123,23 @@ def sub_issue_handler_node(state: AgentState) -> dict:
             team_key=TEAM_KEY,
             title=sub_issue_title,
             description=spec_markdown,
-            state_name="Human: Review"
+            state_name="Human: Review ERD"
         )
         
         if sub_issue:
             print(f"   📋 Created sub-issue: {sub_issue.identifier}")
             print(f"      Title: {sub_issue_title}")
-            print(f"      State: Human: Review")
+            print(f"      State: Human: Review ERD")
             
             # Add comment to parent issue
             adapter.add_comment(
                 issue.id,
-                f"📐 Technical spec created as sub-issue: **{sub_issue.identifier}**\n\n"
-                f"Awaiting human review in 'Human: Technical Review' column."
+                f"📐 ERD created as sub-issue: **{sub_issue.identifier}**\n\n"
+                f"Awaiting human review in 'Human: Review ERD' column. Move to 'AI: Implement' when approved."
             )
             
-            # Transition parent issue to waiting state
-            adapter.transition_issue(issue.id, "AI: Awaiting Sub-task")
+            # Transition parent issue to In Progress (waiting for sub-issues to complete)
+            adapter.transition_issue(issue.id, "AI: In Progress")
             
             return {
                 "status": "awaiting_technical_review",

@@ -24,20 +24,36 @@ from agent.nodes.reverter import reverter_node
 
 
 def route_entry_point(state: AgentState) -> str:
-    """Route based on whether this is a sub-issue (skip PM) or parent issue."""
-    if state.get("is_sub_issue"):
-        print("   📎 Sub-issue detected - skipping product manager, going to classifier")
+    """Route based on workflow phase determined by poll.py."""
+    phase = state.get("workflow_phase", "prd")
+    
+    if phase == "prd":
+        # PRD phase - go to product manager
+        print("   📝 PRD phase - routing to product manager")
+        return "product_manager"
+    elif phase == "erd":
+        # ERD phase - skip PM, go to classifier -> planner -> sub-issue handler
+        print("   📐 ERD phase - routing to classifier for technical planning")
         return "classifier"
-    return "product_manager"
+    elif phase == "implement":
+        # Implementation phase - sub-issue ready for implementation
+        print("   🔨 Implementation phase - routing to classifier for implementation")
+        return "classifier"
+    else:
+        # Legacy support for is_sub_issue flag
+        if state.get("is_sub_issue"):
+            print("   📎 Sub-issue detected - skipping product manager, going to classifier")
+            return "classifier"
+        return "product_manager"
 
 
 def route_from_classifier(state: AgentState) -> str:
-    """Route based on request classification and whether it's a sub-issue."""
-    is_sub = state.get("is_sub_issue", False)
+    """Route based on workflow phase and request classification."""
+    phase = state.get("workflow_phase", "")
     request_type = state.get("request_type", "general")
 
-    if is_sub:
-        # Sub-issue: go directly to implementation
+    if phase == "implement":
+        # Implementation phase: go directly to implementation engineer
         if request_type == "requires_contract":
             return "contractor"
         elif request_type == "infrastructure":
@@ -45,7 +61,7 @@ def route_from_classifier(state: AgentState) -> str:
         else:
             return "software_engineer"
     else:
-        # Parent issue: go to planner first
+        # ERD phase (or legacy): go to planner to create sub-issues
         if request_type == "requires_contract":
             return "contractor_planner"
         elif request_type == "infrastructure":
@@ -129,10 +145,10 @@ def route_from_product_manager(state: AgentState) -> str:
 
 
 def route_from_approval_gate(state: AgentState) -> str:
-    """Route from approval gate - end flow, wait for human to move issue back."""
-    # Both prd_approved (legacy) and awaiting_prd_review end the flow
-    # Human will move issue back to "AI: Ready" when approved
-    # poll.py will pick it up and is_sub_issue=False + prd exists = skip PM
+    """Route from approval gate - end flow, wait for human review."""
+    # PRD is now in Human: Review PRD
+    # Human will move issue to "AI: Create ERD" when approved
+    # poll.py will pick it up with workflow_phase="erd"
     return "end"
 
 

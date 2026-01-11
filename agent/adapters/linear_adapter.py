@@ -44,13 +44,13 @@ class LinearAdapter:
         response.raise_for_status()
         return response.json()
 
-    def get_ready_issues(self, team_key: str) -> List[LinearIssue]:
-        """Fetch issues in the 'AI: Ready' state."""
+    def get_issues_in_state(self, team_key: str, state_name: str) -> List[LinearIssue]:
+        """Fetch issues in a specific workflow state."""
         query = '''
-        query ReadyIssues($teamKey: String!) {
+        query IssuesInState($teamKey: String!, $stateName: String!) {
             issues(filter: {
                 team: { key: { eq: $teamKey } }
-                state: { name: { eq: "AI: Ready" } }
+                state: { name: { eq: $stateName } }
             }) {
                 nodes {
                     id
@@ -64,7 +64,7 @@ class LinearAdapter:
             }
         }
         '''
-        result = self._query(query, {"teamKey": team_key})
+        result = self._query(query, {"teamKey": team_key, "stateName": state_name})
         issues = result.get("data", {}).get("issues", {}).get("nodes", [])
 
         return [
@@ -79,6 +79,10 @@ class LinearAdapter:
             )
             for issue in issues
         ]
+
+    def get_ready_issues(self, team_key: str) -> List[LinearIssue]:
+        """Fetch issues in the 'AI: Create PRD' state. (Legacy - use get_issues_in_state)"""
+        return self.get_issues_in_state(team_key, "AI: Create PRD")
 
     def transition_issue(self, issue_id: str, state_name: str) -> bool:
         """Move an issue to a different state."""
@@ -312,18 +316,26 @@ class LinearAdapter:
             Dict of state name -> created (True) or already existed (False)
         """
         required_states = [
-            {"name": "AI: Ready", "color": "#5e6ad2", "type": "unstarted", 
-             "description": "Ready for AI processing"},
+            # PRD Phase
+            {"name": "AI: Create PRD", "color": "#5e6ad2", "type": "unstarted", 
+             "description": "Product Manager will create PRD for this issue"},
+            {"name": "Human: Review PRD", "color": "#bb87fc", "type": "started",
+             "description": "Human reviews PRD before engineering"},
+            # ERD Phase
+            {"name": "AI: Create ERD", "color": "#26b5ce", "type": "started",
+             "description": "Engineer creates technical sub-issues with ERD"},
+            {"name": "Human: Review ERD", "color": "#bb87fc", "type": "started",
+             "description": "Human reviews technical specs in sub-issues"},
+            # Implementation Phase
+            {"name": "AI: Implement", "color": "#5e6ad2", "type": "started",
+             "description": "Queue of sub-issues ready for implementation"},
             {"name": "AI: In Progress", "color": "#f2c94c", "type": "started",
              "description": "AI is currently working on this issue"},
-            {"name": "AI: Review", "color": "#26b5ce", "type": "started",
-             "description": "AI completed work, ready for code review"},
+            {"name": "Human: Review PR", "color": "#bb87fc", "type": "started",
+             "description": "PR opened, waiting for human review and merge"},
+            # Error handling
             {"name": "AI: Failed", "color": "#eb5757", "type": "started",
              "description": "AI encountered an error"},
-            {"name": "AI: Awaiting Sub-task", "color": "#95a2b3", "type": "started",
-             "description": "Waiting for sub-task to be completed"},
-            {"name": "Human: Review", "color": "#bb87fc", "type": "started",
-             "description": "Waiting for human review/approval"},
         ]
         
         existing = set(self.get_workflow_states(team_key))
@@ -345,3 +357,95 @@ class LinearAdapter:
                 
         return results
 
+    def get_sub_issues(self, parent_id: str) -> List[LinearIssue]:
+        """Get all sub-issues of a parent issue."""
+        query = '''
+        query GetSubIssues($parentId: ID!) {
+            issue(id: $parentId) {
+                children {
+                    nodes {
+                        id
+                        identifier
+                        title
+                        description
+                        state { name }
+                        priority
+                        parent { id }
+                    }
+                }
+            }
+        }
+        '''
+        result = self._query(query, {"parentId": parent_id})
+        children = result.get("data", {}).get("issue", {}).get("children", {}).get("nodes", [])
+        
+        return [
+            LinearIssue(
+                id=issue["id"],
+                identifier=issue["identifier"],
+                title=issue["title"],
+                description=issue.get("description"),
+                state=issue["state"]["name"],
+                priority=issue.get("priority", 0),
+                parent_id=issue.get("parent", {}).get("id") if issue.get("parent") else None
+            )
+            for issue in children
+        ]
+
+    def get_issue_comments(self, issue_id: str) -> List[str]:
+        """Get all comments on an issue."""
+        query = '''
+        query GetComments($issueId: ID!) {
+            issue(id: $issueId) {
+                comments {
+                    nodes {
+                        body
+                    }
+                }
+            }
+        }
+        '''
+        result = self._query(query, {"issueId": issue_id})
+        comments = result.get("data", {}).get("issue", {}).get("comments", {}).get("nodes", [])
+        return [c["body"] for c in comments]
+
+    def get_issue_by_id(self, issue_id: str) -> Optional[LinearIssue]:
+        """Get an issue by its ID."""
+        query = '''
+        query GetIssue($id: ID!) {
+            issue(id: $id) {
+                id
+                identifier
+                title
+                description
+                state { name }
+                priority
+                parent { id }
+            }
+        }
+        '''
+        result = self._query(query, {"id": issue_id})
+        issue = result.get("data", {}).get("issue")
+        
+        if not issue:
+            return None
+            
+        return LinearIssue(
+            id=issue["id"],
+            identifier=issue["identifier"],
+            title=issue["title"],
+            description=issue.get("description"),
+            state=issue["state"]["name"],
+            priority=issue.get("priority", 0),
+            parent_id=issue.get("parent", {}).get("id") if issue.get("parent") else None
+        )
+
+    def all_sub_issues_completed(self, parent_id: str, completed_state: str = "Done") -> bool:
+        """Check if all sub-issues of a parent are in the completed state."""
+        sub_issues = self.get_sub_issues(parent_id)
+        if not sub_issues:
+            return False  # No sub-issues means not complete
+        
+        # Check if all sub-issues are in a "done" type state
+        completed_states = {"Done", "Completed", "Closed", "Canceled"}
+        return all(issue.state in completed_states for issue in sub_issues)
