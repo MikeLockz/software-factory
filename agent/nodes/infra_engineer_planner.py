@@ -60,8 +60,12 @@ Output JSON:
 
 def infra_engineer_planner_node(state: AgentState) -> dict:
     """Generate a technical spec for infrastructure changes."""
-    prd = state.get("prd", {})
-    prd_summary = f"{prd.get('title', 'N/A')}: {prd.get('problem_statement', 'N/A')}"
+    prd = state.get("prd") or {}
+    if prd:
+        prd_summary = f"{prd.get('title', 'N/A')}: {prd.get('problem_statement', 'N/A')}"
+    else:
+        # PRD is in the issue description - use task_description which includes it
+        prd_summary = state.get("task_description", "No PRD available")
 
     prompt = INFRA_ENGINEER_PLANNER_PROMPT.format(
         project_context=get_context_for_prompt(),
