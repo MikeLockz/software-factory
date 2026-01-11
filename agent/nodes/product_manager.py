@@ -23,7 +23,7 @@ Create a comprehensive PRD with:
 
 1. **Problem Statement**: What problem does this solve? Who is affected?
 2. **User Stories**: 3-5 user stories in "As a [user], I want [goal], so that [benefit]" format
-3. **Acceptance Criteria**: Testable criteria for each user story
+3. **Acceptance Criteria**: For EACH user story, write 1-3 Gherkin-formatted scenarios using Given/When/Then syntax
 4. **Edge Cases**: What could go wrong? What are the boundary conditions?
 5. **Out of Scope**: What are we explicitly NOT building?
 6. **Success Metrics**: How do we measure success?
@@ -37,7 +37,14 @@ Output JSON:
       "as_a": "user type",
       "i_want": "goal",
       "so_that": "benefit",
-      "acceptance_criteria": ["criterion 1", "criterion 2"]
+      "acceptance_criteria": [
+        {{
+          "scenario": "Descriptive scenario name",
+          "given": "the initial context or precondition",
+          "when": "the action or trigger occurs",
+          "then": "the expected outcome or result"
+        }}
+      ]
     }}
   ],
   "edge_cases": ["edge case 1", "edge case 2"],
